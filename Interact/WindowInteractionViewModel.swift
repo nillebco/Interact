@@ -90,4 +90,45 @@ final class WindowInteractionViewModel: ObservableObject {
     func clearError() {
         lastError = nil
     }
+
+    func perform(invocation: AIToolInvocation) throws -> String {
+        switch invocation.name {
+        case "capture_screenshot":
+            captureScreenshot()
+            return "Screenshot captured."
+        case "type_text":
+            let text = invocation.arguments["text"]?.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard let text, text.isEmpty == false else {
+                throw AIServiceError.missingToolArgument("text")
+            }
+            textToSend = text
+            sendText()
+            return "Typed text in the selected window."
+        case "send_shortcut":
+            try sendShortcut(invocation: invocation)
+            return "Shortcut sent."
+        default:
+            throw AIServiceError.unknownTool(invocation.name)
+        }
+    }
+
+    private func sendShortcut(invocation: AIToolInvocation) throws {
+        guard let keyValue = invocation.arguments["key"]?.trimmingCharacters(in: .whitespacesAndNewlines),
+              keyValue.isEmpty == false else {
+            throw AIServiceError.missingToolArgument("key")
+        }
+
+        shortcutInput.key = keyValue
+        shortcutInput.useCommand = invocation.arguments["command"].map(Self.isTrue) ?? false
+        shortcutInput.useOption = invocation.arguments["option"].map(Self.isTrue) ?? false
+        shortcutInput.useControl = invocation.arguments["control"].map(Self.isTrue) ?? false
+        shortcutInput.useShift = invocation.arguments["shift"].map(Self.isTrue) ?? false
+
+        sendShortcut()
+    }
+
+    private static func isTrue(_ value: String) -> Bool {
+        let normalized = value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return normalized == "true" || normalized == "1" || normalized == "yes"
+    }
 }

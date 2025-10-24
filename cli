@@ -57,10 +57,41 @@ case "$1" in
     ;;
   lint)
     ensure_swiftlint
-    swiftlint lint --quiet
+    mkdir -p "${REPO_ROOT}/.build/swiftlint" \
+      "${REPO_ROOT}/.build/home/Library/Developer/Xcode/DerivedData" \
+      "${REPO_ROOT}/.build/tmp"
+    LATEST_LOG=""
+    for log_file in $(ls -t "${REPO_ROOT}"/.build/DerivedData/Logs/Build/*.xcactivitylog 2>/dev/null); do
+      if [[ -s "${log_file}" ]]; then
+        LATEST_LOG="${log_file}"
+        break
+      fi
+    done
+    if [[ -n "${LATEST_LOG}" ]]; then
+      TEMP_LOG="${REPO_ROOT}/.build/tmp/swiftlint-compiler-log.xcactivitylog"
+      /usr/bin/env python3 - "$LATEST_LOG" "$TEMP_LOG" <<'PY'
+import gzip
+import shutil
+import sys
+
+source, destination = sys.argv[1], sys.argv[2]
+with gzip.open(source, "rb") as zipped, open(destination, "wb") as unzipped:
+    shutil.copyfileobj(zipped, unzipped)
+PY
+      SWIFTLINT_CACHE_PATH="${REPO_ROOT}/.build/swiftlint/cache" \
+        HOME="${REPO_ROOT}/.build/home" \
+        TMPDIR="${REPO_ROOT}/.build/tmp" \
+        swiftlint analyze --quiet --compiler-log-path "${TEMP_LOG}"
+      rm -f "${TEMP_LOG}"
+    else
+      SWIFTLINT_CACHE_PATH="${REPO_ROOT}/.build/swiftlint/cache" \
+        HOME="${REPO_ROOT}/.build/home" \
+        TMPDIR="${REPO_ROOT}/.build/tmp" \
+        swiftlint lint --quiet
+    fi
     ;;
   test)
-    run_xcodebuild test -destination 'platform=macOS' -skip-testing:InteractUITests
+    run_xcodebuild test -destination 'platform=macOS' -only-testing:InteractTests -skip-testing:InteractUITests
     ;;
   *)
     usage

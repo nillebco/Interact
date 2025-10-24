@@ -3,6 +3,12 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject private var authManager: AuthorizationManager
     @StateObject private var viewModel = WindowInteractionViewModel()
+    @StateObject private var aiSettingsViewModel: AISettingsViewModel
+    @State private var isShowingSettings = false
+
+    init() {
+        _aiSettingsViewModel = StateObject(wrappedValue: AISettingsViewModel(service: AIService()))
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -22,6 +28,11 @@ struct ContentView: View {
         .background(Color(nsColor: .windowBackgroundColor))
         .onAppear {
             viewModel.refreshWindows()
+        }
+        .sheet(isPresented: $isShowingSettings) {
+            AISettingsView(viewModel: aiSettingsViewModel) {
+                isShowingSettings = false
+            }
         }
         .alert("Action Failed", isPresented: errorAlertBinding) {
             Button("OK", role: .cancel) {
@@ -51,6 +62,13 @@ struct ContentView: View {
             )
 
             Spacer()
+
+            Button {
+                isShowingSettings = true
+            } label: {
+                Label("Settings", systemImage: "gearshape")
+            }
+            .buttonStyle(.bordered)
 
             Button {
                 AuthorizationManager.shared.refreshStatuses()
