@@ -1,32 +1,17 @@
-//
-//  InteractApp.swift
-//  Interact
-//
-//  Created by Ivo Bellin Salarin on 24/10/2025.
-//
-
 import SwiftUI
-import SwiftData
+import AppKit
 
 @main
-struct InteractApp: App {
-    var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Item.self,
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-
-        do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
-        } catch {
-            fatalError("Could not create ModelContainer: \(error)")
-        }
-    }()
+struct InteractAppApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+    @StateObject private var authManager = AuthorizationManager.shared
 
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(authManager)
+                .frame(minWidth: 900, minHeight: 560)
         }
-        .modelContainer(sharedModelContainer)
+        .windowStyle(.automatic)
     }
 }
