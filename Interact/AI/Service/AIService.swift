@@ -5,6 +5,11 @@ struct AITestResult: Equatable {
     let message: String
 }
 
+struct AIResponse {
+    let text: String?
+    let toolInvocations: [AIToolInvocation]
+}
+
 enum AIServiceError: Error, LocalizedError {
     case missingAPIKey
     case missingModelSelection
@@ -39,6 +44,7 @@ final class AIService {
         AITool(
             name: "capture_screenshot",
             summary: "Capture a screenshot of the currently selected window.",
+            requiresFollowUp: true,
             parameters: []
         ),
         AITool(
@@ -87,6 +93,10 @@ final class AIService {
 
     func availableTools() -> [AITool] {
         Self.tools
+    }
+
+    func toolDefinition(named name: String) -> AITool? {
+        Self.tools.first(where: { $0.name == name })
     }
 
     func listModels(for provider: AIProvider? = nil) async throws -> [AIModel] {
@@ -153,7 +163,7 @@ final class AIService {
     func generateResponse(
         messages: [AIMessage],
         overrideModelID: String? = nil
-    ) async throws -> String {
+    ) async throws -> AIResponse {
         let configuration = try loadConfiguration()
         switch configuration.provider {
         case .ollama:
@@ -162,12 +172,13 @@ final class AIService {
             }
             var payloadMessages = messages
             payloadMessages.insert(toolingMessage(using: configuration), at: 0)
-            return try await ollamaClient.generateResponse(
+            let text = try await ollamaClient.generateResponse(
                 host: configuration.ollamaHost,
                 port: configuration.ollamaPort,
                 model: modelID,
                 messages: payloadMessages
             )
+            return AIResponse(text: text, toolInvocations: [])
         case .openAI:
             guard let apiKey = configuration.openAIApiKey, apiKey.isEmpty == false else {
                 throw AIServiceError.missingAPIKey
@@ -208,7 +219,10 @@ Available tools:
 \(toolList)
 
 When you need to operate the app, reply with JSON in the form:
+```
 {"tool": "<tool_name>", "arguments": {"key": "value"}}
+```
+Wrap the JSON in a Markdown code block exactly as shown so it can be parsed reliably.
 Otherwise, answer with natural language guidance.
 """
 
@@ -226,4 +240,5 @@ Otherwise, answer with natural language guidance.
         }
         return error
     }
+
 }

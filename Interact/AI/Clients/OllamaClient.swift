@@ -90,12 +90,21 @@ struct OllamaClient: OllamaClientProtocol {
 
         let payload = OllamaChatRequest(
             model: model,
-            messages: messages.map { .init(role: $0.role.rawValue, content: $0.content) },
+            messages: messages.map { message in
+                let text = message.components.compactMap { $0.asString }.joined(separator: "\n")
+                return OllamaChatRequest.Message(role: message.role.rawValue, content: text)
+            },
             stream: false
         )
-        request.httpBody = try encoder.encode(payload)
+        let bodyData = try encoder.encode(payload)
+        print("[Ollama] Request:\n\(String(data: bodyData, encoding: .utf8) ?? "<invalid>")")
+        request.httpBody = bodyData
 
         let (data, response) = try await session.data(for: request)
+        print("[Ollama] Response status: \((response as? HTTPURLResponse)?.statusCode ?? -1)")
+        if let bodyString = String(data: data, encoding: .utf8) {
+            print("[Ollama] Response body:\n\(bodyString)")
+        }
         guard (response as? HTTPURLResponse)?.statusCode == 200 else {
             throw OllamaClientError.invalidResponse
         }

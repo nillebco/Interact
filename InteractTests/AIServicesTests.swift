@@ -65,8 +65,8 @@ struct MockOpenAIClient: OpenAIClientProtocol {
         models
     }
 
-    func generateResponse(apiKey: String, endpoint: String, model: String, messages: [AIMessage], tools: [AITool]) async throws -> String {
-        "openai"
+    func generateResponse(apiKey: String, endpoint: String, model: String, messages: [AIMessage], tools: [AITool]) async throws -> AIResponse {
+        AIResponse(text: "openai", toolInvocations: [])
     }
 }
 

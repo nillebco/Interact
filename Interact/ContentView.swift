@@ -2,12 +2,14 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject private var authManager: AuthorizationManager
-    @StateObject private var viewModel = WindowInteractionViewModel()
+    @StateObject private var viewModel: WindowInteractionViewModel
     @StateObject private var aiSettingsViewModel: AISettingsViewModel
     @State private var isShowingSettings = false
 
     init() {
-        _aiSettingsViewModel = StateObject(wrappedValue: AISettingsViewModel(service: AIService()))
+        let service = AIService()
+        _viewModel = StateObject(wrappedValue: WindowInteractionViewModel(aiService: service))
+        _aiSettingsViewModel = StateObject(wrappedValue: AISettingsViewModel(service: service))
     }
 
     var body: some View {
@@ -174,6 +176,8 @@ struct ContentView: View {
                     textSection
                     Divider()
                     shortcutSection
+                    Divider()
+                    assistantSection
 
                     Spacer()
                 }
@@ -184,6 +188,83 @@ struct ContentView: View {
                         .font(.headline)
                         .foregroundStyle(.secondary)
                     Spacer()
+                }
+            }
+        }
+    }
+
+    private var assistantSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("AI Assistant")
+                    .font(.headline)
+                Spacer()
+                if viewModel.isAutomating {
+                    ProgressView()
+                        .controlSize(.small)
+                }
+            }
+
+            TextEditor(text: $viewModel.userInstructions)
+                .frame(minHeight: 140)
+                .textEditorStyle(.plain)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.secondary.opacity(0.25))
+                )
+                .disabled(viewModel.isAutomating)
+
+            HStack(spacing: 12) {
+                Button {
+                    viewModel.startAutomation()
+                } label: {
+                    Label("Send Instructions", systemImage: "paperplane")
+                }
+                .disabled(viewModel.isAutomating)
+
+                Button("Clear") {
+                    viewModel.resetConversation()
+                }
+                .disabled(viewModel.isAutomating)
+
+                Spacer()
+            }
+
+            if !viewModel.chatEntries.isEmpty {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 12) {
+                        ForEach(viewModel.chatEntries) { entry in
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(entry.author)
+                                    .font(.caption)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(.secondary)
+                                Text(entry.content)
+                                    .font(.body)
+                                    .textSelection(.enabled)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(10)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(Color(nsColor: .controlBackgroundColor))
+                            )
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .frame(maxHeight: 220)
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Available tools")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.secondary)
+                ForEach(viewModel.availableTools) { tool in
+                    Text("• \(tool.name): \(tool.summary)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
         }
